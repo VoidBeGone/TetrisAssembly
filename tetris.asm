@@ -53,11 +53,7 @@ ADDR_KBRD:
 ##############################################################################
 # Mutable Data
 ##############################################################################
-pixel: .word 0
-storage: .word 0:1024 #every led would be consider off 
-#so the general structrure [32]first row [32]second row just in that order and you have 32 of them 
-#remember that each thing in the "32" you must mutiply by 4 to get the pixel location. 
-
+pixel: .word 4
 ##############################################################################
 # Code
 ##############################################################################
@@ -67,9 +63,12 @@ storage: .word 0:1024 #every led would be consider off
 	# Run the Tetris game.
 main:
     # Initialize the game
-    #jal draw_SCREEN
+    jal draw_SCREEN
+    jal load_array
+start:
     li $t1, 0xff0000        # $t1 = red
     lw $t0, ADDR_DSPL       # $t0 = base address for display
+    addi $t0, $t0, 4
     sw $t1, 0($t0)          # paint the first unit (i.e., top-left) red
     #this is just me making this pixel 
   
@@ -94,7 +93,7 @@ game_loop:
    
 keyboard_input:
 	lw $a0, 4($t1)                  # Load word 
-	beq $a0, 0x64, respond_to_D    # Check if the key q was pressed
+	beq $a0, 0x64, respond_to_D   
 	beq $a0, 0x61, respond_to_A
 	beq $a0, 0x73, respond_to_S
 	beq $a0, 0x77, respond_to_W
@@ -130,34 +129,44 @@ end_CLEAR:
 #Everything here will be for the initial start of the game
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 draw_SCREEN:	
-	#my first idea is just 2 loops to initialize the board 
-	#li $t2, 0x17161A #this is dark grey
-	li $t2, 0xff0000
-	lw $t0, ADDR_DSPL
-	li $t1, 0
-	li $t3, 4096
-	jal dark_GREY
-	#li $t2, 0x1b1b1b #this is dark grey
-	li $t2, 0x00ff00
-	lw $t0, ADDR_DSPL
-	li $t1, 0
-	addi $t0, $t0, 4
-	jal light_GREY
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	move $t8, $ra
+	jal BORDER_SIDE
+	jal BORDER_BOTTOM
+	lw $ra 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
 	
-dark_GREY:
+BORDER_SIDE:
+	#right side border just do loop and 128 mod thing 
+	li $t1, 0 
+	li $t2, 0xf0f00f
+	li $t3, 4096
+	lw $t0, ADDR_DSPL
+	
+BORDER_LOOP_SIDE:
+	beq $t3, $t1, end_DRAW
+	sw $t2, 0($t0)
+	addi $t0, $t0, 124
+	sw $t2, 0($t0)
+	addi $t0, $t0, 4
+	addi $t1, $t1, 128
+	j BORDER_LOOP_SIDE
+	
+BORDER_BOTTOM:
+	li $t1, 3968
+	li $t2, 0xf0f00f
+	li $t3, 4096
+	lw $t0, ADDR_DSPL
+	addi $t0, $t0, 3968
+
+BORDER_BOTTOM_LOOP:
 	beq $t3, $t1, end_DRAW
 	sw $t2, 0($t0)
 	addi $t0, $t0, 4
 	addi $t1, $t1, 4
-	j dark_GREY
-	
-light_GREY:
-	beq $t3, $t1, end_DRAW
-	
-	sw $t2, 0($t0)
-	addi $t0, $t0, 8
-	addi $t1, $t1, 8
-	j light_GREY
+	j BORDER_BOTTOM_LOOP
 	
 end_DRAW:
 	jr $ra
@@ -201,7 +210,7 @@ respond_to_S:
 	addi $sp, $sp, -8
 	sw $t3, 4($sp)
 	sw $t4, 0($sp)
-	jal CHANGING_LED
+	jal checking_movement
 	b game_loop
 	
 
@@ -261,6 +270,7 @@ REMOVING_OLD_LED:
 #all the code under here will handle collisions
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #for testing purpose lets do the sides 
+
 MOVING_UP_CHECK:
 	#pulling everything off the stacks just in case
  	lw $t3, 4($sp)
@@ -272,13 +282,12 @@ MOVING_UP_CHECK:
 	addi $sp, $sp, -8
 	sw $t3, 0($sp)
 	sw $t4, 0($sp)
-	j CHANGING_LED
+	j checking_movement
 	
 LEFT_SIDE_CHECK:
 	lw $t3, 4($sp)
 	lw $t4, 0($sp)
 	addi $sp, $sp, 8
-	addi $t3, $t3, 4
 	#checking stuff
 	li $t5, 128
 	div $t3, $t5
@@ -287,16 +296,17 @@ LEFT_SIDE_CHECK:
 	beq $t1, $t6, game_loop
 	
 	#now we can move since we checked 
-	addi $t3, $t3, -4
 	addi $sp, $sp, -8
 	sw $t3, 4($sp)
 	sw $t4, 0($sp)
-	j CHANGING_LED
+	
+	j checking_movement
 
 RIGHT_SIDE_CHECK:
 	lw $t3, 4($sp)
 	lw $t4, 0($sp)
 	addi $sp, $sp, 8
+	addi $t3, $t3, 4
 	
 	li $t5, 128
 	div $t3, $t5
@@ -305,15 +315,92 @@ RIGHT_SIDE_CHECK:
 	beq $t1, $t6, game_loop
 	
 	#now we can move we checked
+	addi $t3, $t3, -4
 	addi $sp, $sp, -8 
 	sw $t3, 4($sp)
 	sw $t4, 0($sp)
-	j CHANGING_LED
+	j checking_movement
 	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
+#okay this will be for anything having to due with like block hitting 
+#the ground or other blocks 
+#->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# The logic for stopping the block and spawning a new one.
+checking_movement:
+    # Initialize my own things
+    # Pull from the stack since this is checking down 
+    lw $t0, ADDR_DSPL
+    lw $t3, 4($sp) # Currently hosting how much I'm moving
+    lw $t4, 0($sp) # Not really being used just scared to see what happens if I don't pull it out
+    addi $sp, $sp, 8
 
+    add $t0, $t0, $t3
+    lw $t9, 0($t0)
+    li $t8, 0x000000
+    beq $t9, $t8, no_block
+    # This means that there is a block so load this in mem if we cant move down
+
+    # Check if we can move down
+    add $t0, $t0, $t4
+    addi $t0, $t0, 128 # Checking the position under me
+    lw $t9, 0($t0)
+    beq $t9, $t8, can_move_down
+
+   # Finalize the block position and reset
+    lw $t0, ADDR_DSPL
+    li $t8, 4 # Resetting the pixel variable to a new starting position
+    sw $t8, pixel
+    li $t7, 0x10008000
+    sw $t7, ADDR_DSPL
+    j start # Go back to the start of the game loop
+    
+no_block:
+    addi $sp, $sp, -8
+    sw $t3, 4($sp)
+    sw $t4, 0($sp)
+    j CHANGING_LED
+
+can_move_down:
+    # Move down if there's space
+    j game_loop
+
+	
+	
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+#->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
 
