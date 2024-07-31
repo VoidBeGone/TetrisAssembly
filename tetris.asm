@@ -97,6 +97,7 @@ keyboard_input:
 	beq $a0, 0x64, respond_to_D   
 	beq $a0, 0x61, respond_to_A
 	beq $a0, 0x73, respond_to_S
+	#beq $a0, 0x73, respond_to_M
 	beq $a0, 0x77, respond_to_W
 	beq $a0, 0x70, start_QUIT
 	b game_loop
@@ -105,6 +106,10 @@ keyboard_input:
 	
 #Everything in this box is for quiting 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+EXIT:
+	li $v0, 10
+	syscall
+	
 start_QUIT:
 	li $t2, 0x000000
 	lw $t0, ADDR_DSPL
@@ -181,40 +186,22 @@ respond_to_D:
 	jal moveLine1R
 	b game_loop
 	
-	######### DNE
-	li $t2, 0xff0000        # $t1 = red     
-    	la $t0, pixel
-    	addi $t3, $t1, 4 #each led is 4 position
-    	li $t4, -4
-    	
-    	#Pushing and function
-    	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	jal RIGHT_SIDE_CHECK
-	b game_loop
-
+	
 respond_to_A:
 	jal moveLine1L
 	b game_loop
 	
-	######### DNE
-	li $t2, 0xff0000
-	lw $t1, pixel 
-	addi $t3, $t1, -4
-	li $t4, 4
-	#push thing 
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	jal LEFT_SIDE_CHECK
+	
+	
+respond_to_M:
+	jal BOTTOM_SIDE_CHECK_PETER
+	jal redraw
 	b game_loop
 	
 respond_to_S:
 	jal BOTTOM_SIDE_CHECK
-	jal moveLine1D
+	jal redraw
 	b game_loop
-
 
 	
 
@@ -307,7 +294,6 @@ vertical:
 	jal moveLine1L
 	b game_loop
 	
-	
 
 	
 
@@ -324,24 +310,76 @@ vertical:
 	
 LEFT_SIDE_CHECK:
 
-
-
-RIGHT_SIDE_CHECK:
-
 BOTTOM_SIDE_CHECK:
-	lw $t0, ADDR_DSPL
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, 128
+loop2:
+	beq $t8, $t9, return_no_block2 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
+	
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below2
+	
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop2
+	
+return_leave_loop_block_below2:
+	jal redraw
+	j start
+	
+return_no_block2:
 	la $t1, pixel
 	lw $t2, 0($t1)
 	addi $t2, $t2, 128
+	sw $t2, 0($t1)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+BOTTOM_SIDE_CHECK_PETER:
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, 128
+loop1:
+	beq $t8, $t9, return_no_block1 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
+	
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below1
+	
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop1
+	
+return_leave_loop_block_below1:
+	jal redraw
+	j start
+	
+return_no_block1:
+	la $t1, pixel
+	lw $t2, 0($t1)
 	addi $t2, $t2, 128
-	addi $t2, $t2, 128
-	addi $t2, $t2, 128
-	add $t0, $t0, $t2
-	li $t3, 0x000000
-	lw $t4, 0($t0)
-	bne $t3, $t4, start
+	sw $t2, 0($t1)
 	jr $ra
 	
+RIGHT_SIDE_CHECK:
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
@@ -354,8 +392,7 @@ BOTTOM_SIDE_CHECK:
 
 
 
-    
-moveLine1D: ####vertical down 
+clearShape:
 	lw $t0, ADDR_DSPL
 	la $t1, pixel
 	li $t3, 0x000000
@@ -372,13 +409,13 @@ moveLine1D: ####vertical down
 	lw $t2, 12($t1)
 	add $t0, $t0, $t2
 	sw $t3, 0($t0)
-	###move down in pixel array
-	lw $t2, 0($t1)
-	addi $t2, $t2, 128
-	sw $t2, 0($t1)
+	jr $ra
+	
+redraw: 
 	#redraw
 	lw $t0, ADDR_DSPL
 	li $t3, 0xff0000
+	la $t1, pixel
 	lw $t2, 0($t1)
 	add $t0, $t0, $t2
 	sw $t3, 0($t0)
