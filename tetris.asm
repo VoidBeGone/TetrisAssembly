@@ -211,6 +211,7 @@ respond_to_A:
 	b game_loop
 	
 respond_to_S:
+	jal BOTTOM_SIDE_CHECK
 	jal moveLine1D
 	b game_loop
 
@@ -246,7 +247,7 @@ respond_to_W:
 	li $t5, 6
 	beq $t4, $t5, ROTATION_T
 ROTATION_T:
-lw $t2, 0($t1)
+	lw $t2, 0($t1)
 	beq $t3, $zero, verticalL
 	li $t5, 1
 	beq $t3, $t5, horozontalD
@@ -270,7 +271,8 @@ verticalL:
 	jal moveLine1L
 	b game_loop
 horozontalD:
-	sw $zero, rotationState
+	li $t3, 2
+	sw $t3, rotationState
 	jal storeTHD
 	la $t1, pixel
 	sw $t2, 0($t1)
@@ -321,40 +323,24 @@ vertical:
 
 	
 LEFT_SIDE_CHECK:
-	lw $t3, 4($sp)
-	lw $t4, 0($sp)
-	addi $sp, $sp, 8
-	#checking stuff
-	li $t5, 128
-	div $t3, $t5
-	mfhi $t1 
-	li $t6, 0
-	beq $t1, $t6, game_loop
-	
-	#now we can move since we checked 
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
+
 
 
 RIGHT_SIDE_CHECK:
-	lw $t3, 4($sp)
-	lw $t4, 0($sp)
-	addi $sp, $sp, 8
-	addi $t3, $t3, 4
-	
-	li $t5, 128
-	div $t3, $t5
-	mfhi $t1
-	li $t6, 0
-	beq $t1, $t6, game_loop
-	
-	#now we can move we checked
-	addi $t3, $t3, -4
-	addi $sp, $sp, -8 
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
 
+BOTTOM_SIDE_CHECK:
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	lw $t2, 0($t1)
+	addi $t2, $t2, 128
+	addi $t2, $t2, 128
+	addi $t2, $t2, 128
+	addi $t2, $t2, 128
+	add $t0, $t0, $t2
+	li $t3, 0x000000
+	lw $t4, 0($t0)
+	bne $t3, $t4, start
+	jr $ra
 	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
