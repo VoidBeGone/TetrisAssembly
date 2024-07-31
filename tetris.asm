@@ -53,7 +53,9 @@ ADDR_KBRD:
 ##############################################################################
 # Mutable Data
 ##############################################################################
-pixel: .word 4
+pixel: .word 0,0,0,0 #store the offset
+rotationState: .word 0 # because some shapes have less then two axis of symetry
+type: .word 1 # 0 = block 1 = line , 2 = s , 3= z, 4=L 5 =  J, 6= T
 ##############################################################################
 # Code
 ##############################################################################
@@ -64,13 +66,12 @@ pixel: .word 4
 main:
     # Initialize the game
     jal draw_SCREEN
-    jal load_array
+
 start:
-    li $t1, 0xff0000        # $t1 = red
-    lw $t0, ADDR_DSPL       # $t0 = base address for display
-    addi $t0, $t0, 4
-    sw $t1, 0($t0)          # paint the first unit (i.e., top-left) red
-    #this is just me making this pixel 
+
+    
+    jal storeLineV
+    
   
 game_loop:
 	# 1a. Check if key has been pressed
@@ -177,8 +178,12 @@ end_DRAW:
 #Everything in this box is for movement	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 respond_to_D:
+	jal moveLine1R
+	b game_loop
+	
+	######### DNE
 	li $t2, 0xff0000        # $t1 = red     
-    	lw $t1, pixel
+    	la $t0, pixel
     	addi $t3, $t1, 4 #each led is 4 position
     	li $t4, -4
     	
@@ -190,6 +195,10 @@ respond_to_D:
 	b game_loop
 
 respond_to_A:
+	jal moveLine1L
+	b game_loop
+	
+	######### DNE
 	li $t2, 0xff0000
 	lw $t1, pixel 
 	addi $t3, $t1, -4
@@ -202,66 +211,104 @@ respond_to_A:
 	b game_loop
 	
 respond_to_S:
-	li $t2, 0xff0000
-	lw $t1, pixel
-	addi $t3, $t1, 128
-	li $t4, -128
-	#push this info to stack
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	jal checking_movement
+	jal moveLine1D
 	b game_loop
+
+
 	
 
 
 respond_to_W:
-	lw $t1, pixel
-	addi $t3, $t1, -128
-	li $t4, 128
-	#pushing from stack
-	addi $sp, $sp, -8 #get space
-	sw $t3, 4($sp)
-	sw $t4, 0($sp) 
-	jal MOVING_UP_CHECK
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	####### change form
+	la $t1, pixel
+	lw $t2, 0($t1)
+	lw $t3, rotationState
+	lw $t4, type
+	li $t5, 1
+	beq $t4, $t5, ROTATION_LINE
+	beq $t4, $zero, game_loop #we dont need to rotate cube 
+	li $t5, 6
+	beq $t4, $t5, ROTATION_T
+ROTATION_T:
+lw $t2, 0($t1)
+	beq $t3, $zero, verticalL
+	li $t5, 1
+	beq $t3, $t5, horozontalD
+	li $t5, 2
+	beq $t3, $t5, verticalR
+horozontalU:
+	sw $zero, rotationState
+	jal storeTHU
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
+	b game_loop
+verticalL:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeTVL
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
+	b game_loop
+horozontalD:
+	sw $zero, rotationState
+	jal storeTHD
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
+	b game_loop
+verticalR:
+	li $t3, 3
+	sw $t3, rotationState
+	jal storeTVR
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
+	b game_loop
+	
+ROTATION_LINE:
+	beq $t3, $zero, vertical
+horozontal:
+	sw $zero, rotationState
+	jal storeLineV
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
+	b game_loop
+vertical:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeLineH
+	sw $t2, 0($t1)
+	jal moveLine1R
+	jal moveLine1L
 	b game_loop
 	
 	
-CHANGING_LED:
-#t4 will always have the number for deletion
-#t3 will store the number of the move 
-#t2 is color 
-#t0 is display
-	li $t2, 0xff0000
-	lw $t0, ADDR_DSPL
-	#Pulling from stack
-	lw $t4, 0($sp)
-	lw $t3, 4($sp)
-	addi $sp, $sp, 8 #deallocate space
+
 	
-	sw $t3, pixel
-	add $t0, $t0, $t3
-	sw $t2, 0($t0)
-	
-	#pushing from stack 
-	addi $sp, $sp, -8
-	sw $ra, 4($sp)
-	sw $t4, 0($sp)
-	jal REMOVING_OLD_LED
-	lw $ra, 0($sp)
-	addi $sp, $sp, 4
-	jr $ra
-	
-REMOVING_OLD_LED:
-	#t4 contain the ammount previous you need to minus 
-	li $t2, 0x000000
-	#pulling from stack 
-	lw $t4, 0($sp)
-	addi $sp, $sp, 4
-	#other code under 
-	add $t0, $t0, $t4
-	sw $t2, 0($t0)
-	jr $ra
+
 	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -271,18 +318,7 @@ REMOVING_OLD_LED:
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #for testing purpose lets do the sides 
 
-MOVING_UP_CHECK:
-	#pulling everything off the stacks just in case
- 	lw $t3, 4($sp)
- 	lw $t4, 0($sp)
- 	addi $sp, $sp, 8
- 	ble $t3, $zero, game_loop
-	
-	#we can move so now load into stack
-	addi $sp, $sp, -8
-	sw $t3, 0($sp)
-	sw $t4, 0($sp)
-	j checking_movement
+
 	
 LEFT_SIDE_CHECK:
 	lw $t3, 4($sp)
@@ -299,8 +335,7 @@ LEFT_SIDE_CHECK:
 	addi $sp, $sp, -8
 	sw $t3, 4($sp)
 	sw $t4, 0($sp)
-	
-	j checking_movement
+
 
 RIGHT_SIDE_CHECK:
 	lw $t3, 4($sp)
@@ -319,7 +354,7 @@ RIGHT_SIDE_CHECK:
 	addi $sp, $sp, -8 
 	sw $t3, 4($sp)
 	sw $t4, 0($sp)
-	j checking_movement
+
 	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -328,50 +363,261 @@ RIGHT_SIDE_CHECK:
 #the ground or other blocks 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # The logic for stopping the block and spawning a new one.
-checking_movement:
-    # Initialize my own things
-    # Pull from the stack since this is checking down 
-    lw $t0, ADDR_DSPL
-    lw $t3, 4($sp) # Currently hosting how much I'm moving
-    lw $t4, 0($sp) # Not really being used just scared to see what happens if I don't pull it out
-    addi $sp, $sp, 8
-
-    add $t0, $t0, $t3
-    lw $t9, 0($t0)
-    li $t8, 0x000000
-    beq $t9, $t8, no_block
-    # This means that there is a block so load this in mem if we cant move down
-
-    # Check if we can move down
-    add $t0, $t0, $t4
-    addi $t0, $t0, 128 # Checking the position under me
-    lw $t9, 0($t0)
-    beq $t9, $t8, can_move_down
-
-   # Finalize the block position and reset
-    lw $t0, ADDR_DSPL
-    li $t8, 4 # Resetting the pixel variable to a new starting position
-    sw $t8, pixel
-    li $t7, 0x10008000
-    sw $t7, ADDR_DSPL
-    j start # Go back to the start of the game loop
+ # Go back to the start of the game loop
     
-no_block:
-    addi $sp, $sp, -8
-    sw $t3, 4($sp)
-    sw $t4, 0($sp)
-    j CHANGING_LED
 
-can_move_down:
-    # Move down if there's space
-    j game_loop
 
-	
-	
 
+    
+moveLine1D: ####vertical down 
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	###move down in pixel array
+	lw $t2, 0($t1)
+	addi $t2, $t2, 128
+	sw $t2, 0($t1)
+	#redraw
+	lw $t0, ADDR_DSPL
+	li $t3, 0xff0000
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
 	
+	jr $ra
+moveLine1R: ####vertical right
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	###move down in pixel array
+	lw $t2, 0($t1)
+	addi $t2, $t2, 4
+	sw $t2, 0($t1)
+	#redraw
+	lw $t0, ADDR_DSPL
+	li $t3, 0xff0000
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	jr $ra
+moveLine1L: ### left
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	###move down in pixel array
+	lw $t2, 0($t1)
+	addi $t2, $t2, -4
+	sw $t2, 0($t1)
+	#redraw
+	lw $t0, ADDR_DSPL
+	li $t3, 0xff0000
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
 	
-	
+	jr $ra
+
+
+
+storeLineV:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeLineH:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra	
+
+storeZH:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeSH:
+	la $s0, pixel
+	li $s1, 8
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 120
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeBlock:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1 4
+	sw $s1, 4($s0)
+	li $s1, 124
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeLD:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeLU:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeLL: #(left L)
+	la $s0, pixel
+	li $s1, 8
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, -4
+	sw $s1, 12($s0)
+	jr $ra
+storeTHU:
+	la $s0, pixel
+	li $s1, 8
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, -4
+	sw $s1, 8($s0)
+	li $s1, 8
+	sw $s1, 12($s0)
+	jr $ra
+storeTVL:
+	la $s0, pixel
+	li $s1, 8
+	sw $s1, 0($s0)
+	li $s1, 124
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeTVR:
+	la $s0, pixel
+	li $s1, 8
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 124
+	sw $s1, 12($s0)
+	jr $ra		
+storeTHD:
+	la $s0, pixel
+	li $s1, 4
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 124
+	sw $s1, 12($s0)
+	jr $ra
 	
 	
 	
