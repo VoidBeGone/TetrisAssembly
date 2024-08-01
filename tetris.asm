@@ -4,8 +4,8 @@
 # Student2: Name, Student Number, UTorID, official email
 #
 # Bitmap Display Configuration:
-# - Unit width in pixels: 4 (update this as needed) 
-# - Unit height in pixels: 4 (update this as needed)
+# - Unit width in pixels: 8 (update this as needed) 
+# - Unit height in pixels: 8 (update this as needed)
 # - Display width in pixels: 256 (update this as needed)
 # - Display height in pixels: 256 (update this as needed)
 # - Base Address for Display: 0x10008000 ($gp)
@@ -49,11 +49,13 @@ ADDR_DSPL:
 # The address of the keyboard. Don't forget to connect it!
 ADDR_KBRD:
     .word 0xffff0000
-
+delay:  .word 200  # Delay for sumthin
 ##############################################################################
 # Mutable Data
 ##############################################################################
-pixel: .word 4
+pixel: .word 0,0,0,0 #store the offset
+rotationState: .word 0 # because some shapes have less then two axis of symetry
+type: .word 1 # 1 = block 2 = line , 3 = s , 4= z, 5=L 6 =  J, 7= T
 ##############################################################################
 # Code
 ##############################################################################
@@ -64,46 +66,114 @@ pixel: .word 4
 main:
     # Initialize the game
     jal draw_SCREEN
-    jal load_array
+
 start:
-    li $t1, 0xff0000        # $t1 = red
-    lw $t0, ADDR_DSPL       # $t0 = base address for display
-    addi $t0, $t0, 4
-    sw $t1, 0($t0)          # paint the first unit (i.e., top-left) red
-    #this is just me making this pixel 
-  
+    # Initialize the random seed
+    move      $t0, $sp   # Seed value (you can use any value or a variable if needed)
+
+    # Generate a pseudo-random number
+    li      $t1, 1103515245
+    mul     $t0, $t0, $t1
+    li      $t2, 12345
+    add     $t0, $t0, $t2
+    li      $t3, 0x7FFFFFFF
+    and     $t0, $t0, $t3
+
+    # Scale the random number to 1-7
+    li      $t4, 7
+    rem     $t5, $t0, $t4 # $t5 = $t0 % 7
+    addi    $t5, $t5, 1   # $t5 = ($t0 % 7) + 1
+
+    # Store the result in the data section
+    la      $t6, type     # Load address of 'type'
+    sw      $t5, 0($t6)   # Store the randomized value 
+
+#load the specified block
+    li $t7, 2
+    beq $t5, $t7, L2
+    li $t7, 3
+    beq $t5, $t7, L3
+    li $t7, 4
+    beq $t5, $t7, L4
+    li $t7, 5
+    beq $t5, $t7, L5
+    li $t7, 6
+    beq $t5, $t7, L6
+    li $t7, 7
+    beq $t5, $t7, L7
+
+L1:    
+    jal storeBlock
+    b game_loop
+
+L2:    
+    jal storeLineV
+    b game_loop
+
+L3:    
+    jal storeSH
+    b game_loop
+
+L4:    
+    jal storeZH
+    b game_loop
+
+L5:    
+    jal storeLD
+    b game_loop
+
+L6:    
+    jal storeJU
+    b game_loop
+
+L7:    
+    jal storeTHU
+    b game_loop
+
 game_loop:
-	# 1a. Check if key has been pressed
+
+    # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
-	# 2b. Update locations (paddle, ball)
-	# 3. Draw the screen
-	# 4. Sleep
+    # 2b. Update locations 
+    # 3. Draw the screen
+    # 4. Sleep
 
-    #5. Go back to 1
-    
-    li 		$v0, 32
-    li 		$a0, 1
+    li      $v0, 32
+    li      $a0, 1
     syscall
-    
-    lw $t1, ADDR_KBRD               # $t0 = base address for keyboard
-    lw $t8, 0($t1)                  # Load first word from keyboard 0 basically contains status to say that if a key has been pressd 
-    beq $t8, 1 , keyboard_input      # 1 means that It I CHECKING IF ANY KEY HAS BEEN PRESSED 
-    b game_loop
-   
+
+    lw      $t1, ADDR_KBRD           # $t1 = base address for keyboard
+    lw      $t8, 0($t1)              # Load first word from keyboard, 0 contains status to check if a key has been pressed 
+    beq     $t8, 1, keyboard_input   # 1 means a key has been pressed 
+    j       call_respond_to_S        # Call respond_to_S every 1 second
+
 keyboard_input:
-	lw $a0, 4($t1)                  # Load word 
-	beq $a0, 0x64, respond_to_D   
-	beq $a0, 0x61, respond_to_A
-	beq $a0, 0x73, respond_to_S
-	beq $a0, 0x77, respond_to_W
-	beq $a0, 0x70, start_QUIT
-	b game_loop
+    lw      $a0, 4($t1)              # Load word 
+    beq     $a0, 0x64, respond_to_D  # Check if key 'd' is pressed
+    beq     $a0, 0x61, respond_to_A  # Check if key 'a' is pressed
+    beq     $a0, 0x73, respond_to_S  # Check if key 's' is pressed
+    beq     $a0, 0x6D, respond_to_M  # Check if key 'm' is pressed
+    beq     $a0, 0x77, respond_to_W  # Check if key 'w' is pressed
+    beq     $a0, 0x70, start_QUIT    # Check if key 'p' is pressed
+    j       game_loop                # Go back to game_loop
+
+call_respond_to_S:
+    li      $v0, 32                  
+    lw      $a0, delay              
+    syscall                          
+
+    j       respond_to_S            
+    j       game_loop                
 	
 	
 	
 #Everything in this box is for quiting 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+EXIT:
+	li $v0, 10
+	syscall
+	
 start_QUIT:
 	li $t2, 0x000000
 	lw $t0, ADDR_DSPL
@@ -177,91 +247,117 @@ end_DRAW:
 #Everything in this box is for movement	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 respond_to_D:
-	li $t2, 0xff0000        # $t1 = red     
-    	lw $t1, pixel
-    	addi $t3, $t1, 4 #each led is 4 position
-    	li $t4, -4
-    	
-    	#Pushing and function
-    	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
 	jal RIGHT_SIDE_CHECK
+	jal redraw
 	b game_loop
-
+	
 respond_to_A:
-	li $t2, 0xff0000
-	lw $t1, pixel 
-	addi $t3, $t1, -4
-	li $t4, 4
-	#push thing 
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
 	jal LEFT_SIDE_CHECK
+	jal redraw
+	b game_loop
+	
+	
+	
+respond_to_M:
+	jal BOTTOM_SIDE_CHECK_PETER
+	jal redraw
 	b game_loop
 	
 respond_to_S:
-	li $t2, 0xff0000
-	lw $t1, pixel
-	addi $t3, $t1, 128
-	li $t4, -128
-	#push this info to stack
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	jal checking_movement
+	jal BOTTOM_SIDE_CHECK
+	jal redraw
 	b game_loop
+
 	
 
 
 respond_to_W:
-	lw $t1, pixel
-	addi $t3, $t1, -128
-	li $t4, 128
-	#pushing from stack
-	addi $sp, $sp, -8 #get space
-	sw $t3, 4($sp)
-	sw $t4, 0($sp) 
-	jal MOVING_UP_CHECK
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	jal clearShape
+	####### change form
+	la $t1, pixel
+	lw $t2, 0($t1)
+	lw $t3, rotationState
+	lw $t4, type
+	li $t5, 1
+	beq $t4, $zero, game_loop #we dont need to rotate cube
+	li $t5, 2
+	beq $t4, $t5, ROTATION_LINE 
+	li $t5, 7
+	beq $t4, $t5, ROTATION_T
+	
+	jal redraw
+	b game_loop
+	#to do add all rotation L J S Z 
+
+	
+ROTATION_T:
+	lw $t2, 0($t1)
+	beq $t3, $zero, verticalL
+	li $t5, 1
+	beq $t3, $t5, horozontalD
+	li $t5, 2
+	beq $t3, $t5, verticalR
+horozontalU:
+	sw $zero, rotationState
+	jal storeTHU
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+verticalL:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeTVL
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+horozontalD:
+	li $t3, 2
+	sw $t3, rotationState
+	jal storeTHD
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+verticalR:
+	li $t3, 3
+	sw $t3, rotationState
+	jal storeTVR
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
 	b game_loop
 	
+ROTATION_LINE:
+	beq $t3, $zero, vertical
+horozontal:
+	sw $zero, rotationState
+	jal storeLineV
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+vertical:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeLineH
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
 	
-CHANGING_LED:
-#t4 will always have the number for deletion
-#t3 will store the number of the move 
-#t2 is color 
-#t0 is display
-	li $t2, 0xff0000
-	lw $t0, ADDR_DSPL
-	#Pulling from stack
-	lw $t4, 0($sp)
-	lw $t3, 4($sp)
-	addi $sp, $sp, 8 #deallocate space
+
 	
-	sw $t3, pixel
-	add $t0, $t0, $t3
-	sw $t2, 0($t0)
-	
-	#pushing from stack 
-	addi $sp, $sp, -8
-	sw $ra, 4($sp)
-	sw $t4, 0($sp)
-	jal REMOVING_OLD_LED
-	lw $ra, 0($sp)
-	addi $sp, $sp, 4
-	jr $ra
-	
-REMOVING_OLD_LED:
-	#t4 contain the ammount previous you need to minus 
-	li $t2, 0x000000
-	#pulling from stack 
-	lw $t4, 0($sp)
-	addi $sp, $sp, 4
-	#other code under 
-	add $t0, $t0, $t4
-	sw $t2, 0($t0)
-	jr $ra
+
 	
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -271,56 +367,154 @@ REMOVING_OLD_LED:
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #for testing purpose lets do the sides 
 
-MOVING_UP_CHECK:
-	#pulling everything off the stacks just in case
- 	lw $t3, 4($sp)
- 	lw $t4, 0($sp)
- 	addi $sp, $sp, 8
- 	ble $t3, $zero, game_loop
-	
-	#we can move so now load into stack
-	addi $sp, $sp, -8
-	sw $t3, 0($sp)
-	sw $t4, 0($sp)
-	j checking_movement
-	
-LEFT_SIDE_CHECK:
-	lw $t3, 4($sp)
-	lw $t4, 0($sp)
-	addi $sp, $sp, 8
-	#checking stuff
-	li $t5, 128
-	div $t3, $t5
-	mfhi $t1 
-	li $t6, 0
-	beq $t1, $t6, game_loop
-	
-	#now we can move since we checked 
-	addi $sp, $sp, -8
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	
-	j checking_movement
 
 RIGHT_SIDE_CHECK:
-	lw $t3, 4($sp)
-	lw $t4, 0($sp)
-	addi $sp, $sp, 8
-	addi $t3, $t3, 4
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, 4 #right
+loop3:
+	beq $t8, $t9, return_no_block3 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
 	
-	li $t5, 128
-	div $t3, $t5
-	mfhi $t1
-	li $t6, 0
-	beq $t1, $t6, game_loop
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below3
 	
-	#now we can move we checked
-	addi $t3, $t3, -4
-	addi $sp, $sp, -8 
-	sw $t3, 4($sp)
-	sw $t4, 0($sp)
-	j checking_movement
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop3
 	
+return_leave_loop_block_below3:
+	jal redraw
+	j helper_function
+	#j start
+	
+return_no_block3:
+	la $t1, pixel
+	lw $t2, 0($t1)
+	addi $t2, $t2, 4
+	sw $t2, 0($t1)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+LEFT_SIDE_CHECK:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, -4
+loop4:
+	beq $t8, $t9, return_no_block4 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
+	
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below4
+	
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop4
+	
+return_leave_loop_block_below4:
+	jal redraw
+	j helper_function
+	#j start
+	
+return_no_block4:
+	la $t1, pixel
+	lw $t2, 0($t1)
+	addi $t2, $t2, -4
+	sw $t2, 0($t1)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+BOTTOM_SIDE_CHECK:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, 128
+loop2:
+	beq $t8, $t9, return_no_block2 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
+	
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below2
+	
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop2
+	
+return_leave_loop_block_below2:
+	jal redraw
+	j helper_function
+	#j start
+	
+return_no_block2:
+	la $t1, pixel
+	lw $t2, 0($t1)
+	addi $t2, $t2, 128
+	sw $t2, 0($t1)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+BOTTOM_SIDE_CHECK_PETER:
+	jal clearShape
+	la $t1, pixel
+	li $t9, 4 #increase number
+	li $t8, 0 #counter 
+	li $t7, 0x000000
+	lw $t0, ADDR_DSPL #loading to make less math
+	addi $t0, $t0, 128
+loop1:
+	beq $t8, $t9, return_no_block1 #code this later 
+	lw $t2, 0($t1) #loading pixel in 
+	
+	#code is now for checking below 
+	add $t0, $t0, $t2 
+	lw $t3, 0($t0) #this is now led below the pixel being checked
+	bne $t3, $t7, return_leave_loop_block_below1
+	
+	#this is reseting loop
+	addi $t1, $t1, 4 #going to next pixel
+	addi $t8, $t8, 1 #increase counter 
+	j loop1
+	
+return_leave_loop_block_below1:
+	jal redraw
+	j helper_function
+	#j start
+	
+return_no_block1:
+	la $t1, pixel
+	lw $t2, 0($t1)
+	addi $t2, $t2, 128
+	sw $t2, 0($t1)
+	jr $ra
+	
+
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
@@ -328,80 +522,303 @@ RIGHT_SIDE_CHECK:
 #the ground or other blocks 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # The logic for stopping the block and spawning a new one.
-checking_movement:
-    # Initialize my own things
-    # Pull from the stack since this is checking down 
-    lw $t0, ADDR_DSPL
-    lw $t3, 4($sp) # Currently hosting how much I'm moving
-    lw $t4, 0($sp) # Not really being used just scared to see what happens if I don't pull it out
-    addi $sp, $sp, 8
-
-    add $t0, $t0, $t3
-    lw $t9, 0($t0)
-    li $t8, 0x000000
-    beq $t9, $t8, no_block
-    # This means that there is a block so load this in mem if we cant move down
-
-    # Check if we can move down
-    add $t0, $t0, $t4
-    addi $t0, $t0, 128 # Checking the position under me
-    lw $t9, 0($t0)
-    beq $t9, $t8, can_move_down
-
-   # Finalize the block position and reset
-    lw $t0, ADDR_DSPL
-    li $t8, 4 # Resetting the pixel variable to a new starting position
-    sw $t8, pixel
-    li $t7, 0x10008000
-    sw $t7, ADDR_DSPL
-    j start # Go back to the start of the game loop
+ # Go back to the start of the game loop
     
-no_block:
-    addi $sp, $sp, -8
-    sw $t3, 4($sp)
-    sw $t4, 0($sp)
-    j CHANGING_LED
 
-can_move_down:
-    # Move down if there's space
-    j game_loop
 
-	
-	
 
+clearShape:
+	lw $t0, ADDR_DSPL
+	la $t1, pixel
+	li $t3, 0x000000
+	###clear off the screen
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	jr $ra
 	
+redraw: 
+	#redraw
+	lw $t0, ADDR_DSPL
+	li $t3, 0xff0000
+	la $t1, pixel
+	lw $t2, 0($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 4($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 8($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
+	lw $t2, 12($t1)
+	add $t0, $t0, $t2
+	sw $t3, 0($t0)
 	
+	jr $ra
+
+
+
+
+storeLineV:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeLineH:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra	
+
+storeZH:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeSH:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 120
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeBlock:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1 4
+	sw $s1, 4($s0)
+	li $s1, 124
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeLD:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeLU:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeJU: #(left L)
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, -4
+	sw $s1, 12($s0)
+	jr $ra
+storeTHU:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, -4
+	sw $s1, 8($s0)
+	li $s1, 8
+	sw $s1, 12($s0)
+	jr $ra
+storeTVL:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 124
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeTVR:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 124
+	sw $s1, 12($s0)
+	jr $ra		
+storeTHD:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 124
+	sw $s1, 12($s0)
+	jr $ra
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+		
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+########peters line drop
 
+helper_function:
+    lw $t0, ADDR_DSPL
+    addi $t0, $t0, 3960 #at this point in time ADDR_DSPL IS at the last line last pos
+    addi $sp, $sp, -4
+    sw $t0, 0($sp)
+    li $t8, 0 #holy grail
+    j has_been_touched # Go back to the start of the game loop
+ 
+has_been_touched:
+	#so basically each line is 30 unit and we have 31 lines
+	# we need to start from the bottom up obviously 
+	#so basically lets add ADDR_DSPL with 4x 30x29 since size thing ya 
+	lw $t0, 0($sp) 
+	addi $sp, $sp, 4
+	li $t7, 7
+	#we are going to do something cool, we are going to do a loop but backwards cause ehhh the lols
+	li $t1, 30
+	li $t2, 0 #counter for loop
+	li $t3, 0# how many time we have an led 
+	li $t9, 0x000000
+	
+has_been_touched_backwards_loop:
+	beq $t2, $t1, END_TOUCH_LOOP
+	lw $t4, 0($t0) #loading led 
+	bne $t4, $t9, LED_COUNT_INCREASE
+	j LED_COUNT_OTHER
+	
+
+LED_COUNT_INCREASE: #if there exist an led on
+	addi $t3, $t3, 1 #increasing how many led on
+	j LED_COUNT_OTHER
+	
+LED_COUNT_OTHER: #just doing the loop stuff 
+	addi $t2, $t2, 1 #increase counter
+	addi $t0, $t0, -4 #checking another position
+	j has_been_touched_backwards_loop
+	
+	
+END_TOUCH_LOOP:
+	beq $t3, $t1, LINE_FULL #this means that we have an entire line lit 
+	#code under here mine no line is not full 
+	j LINE_FULL_LOOP_END #checking other lines
+	
+LINE_FULL:
+	#this means line is full so we will need to remove it, then drop everything above it down 
+	#lets work on removing the line 
+	li $t8, 7
+	add $t0, $t0, 120 #we are moving it back to the start of the line in reverse 
+	li $t4, 30 #counter end
+	#li $t9, 0x0000ff
+	
+LINE_FULL_LOOP:
+	beq $t4, $zero, LINE_FULL_LOOP_END
+	sw $t9, 0($t0) #changing to black 
+	subi $t4, $t4, 1
+	addi $t0, $t0, -4
+	j LINE_FULL_LOOP
+
+LINE_FULL_LOOP_END:
+	li $t5, 0x10008000
+	blt $t0, $t5, CHECKING_FULL_STOP
+	#HOLT GRRAIL CHECK IM OUT OF IDEA
+	beq $t7, $t8, LINE_DROP
+	addi $t0, $t0, -8 #cause the border spots need to be the removed 
+	addi $sp, $sp, -4
+	sw $t0, 0($sp)
+	j has_been_touched     #currently what this is doing is just looping through the the next line and checking
+
+
+CHECKING_FULL_STOP:
+	j start
+	
+	
+LINE_DROP:
+	addi $t0, $t0 , -8 #should be the the end now
+	#lw $t0, ADDR_DSPL
+	#addi $t0, $t0, 3832
+	li $t1, 30
+	#jal array_reset
+	#la $t2, array_reset	
+	li $t9, 0x000000
+	
+LINE_DROP_LOOP:
+	beq $t1, $zero, LINE_DROP_LOOP_END
+	lw $t4, 0($t0)
+	bne $t4, $t9, LINE_DROP_PASS_ONE
+	j LINE_DROP_CONT
+
+
+LINE_DROP_PASS_ONE:
+	lw $t5, 128($t0)
+	beq $t5, $t9 LINE_DROP_PASS_TWO
+	j LINE_DROP_CONT
+
+LINE_DROP_PASS_TWO:
+	#this mean i move 
+	sw $t4, 128($t0) #dropped bitch
+	sw $t9, 0($t0)
+	j LINE_DROP_CONT
+	
+LINE_DROP_CONT:
+	addi $t0, $t0, -4
+	addi $t1, $t1, -1
+	j LINE_DROP_LOOP
+	
+LINE_DROP_LOOP_END:
+	li $t5, 0x10008000
+	blt $t0, $t5, LINE_DROP_FULL_STOP
+	j LINE_DROP
+	
+LINE_DROP_FULL_STOP:
+	j helper_function
 
 
 
