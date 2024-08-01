@@ -1,4 +1,11 @@
-
+helper_function:
+    lw $t0, ADDR_DSPL
+    addi $t0, $t0, 3960 #at this point in time ADDR_DSPL IS at the last line last pos
+    addi $sp, $sp, -4
+    sw $t0, 0($sp)
+    li $t8, 0 #holy grail
+    j has_been_touched # Go back to the start of the game loop
+ 
 has_been_touched:
 	#so basically each line is 30 unit and we have 31 lines
 	# we need to start from the bottom up obviously 
