@@ -50,12 +50,16 @@ ADDR_DSPL:
 ADDR_KBRD:
     .word 0xffff0000
 delay:  .word 200  # Delay for sumthin
+
+
+
 ##############################################################################
 # Mutable Data
 ##############################################################################
 pixel: .word 0,0,0,0 #store the offset
 rotationState: .word 0 # because some shapes have less then two axis of symetry
 type: .word 1 # 1 = block 2 = line , 3 = s , 4= z, 5=L 6 =  J, 7= T
+currentColour: .word 0x000000
 ##############################################################################
 # Code
 ##############################################################################
@@ -83,10 +87,33 @@ start:
     li      $t4, 7
     rem     $t5, $t0, $t4 # $t5 = $t0 % 7
     addi    $t5, $t5, 1   # $t5 = ($t0 % 7) + 1
+    
+    # Secondary scale 1-3
+    li      $t4, 3
+    rem     $t7, $t0, $t4 # $t7 = $t0 % 3
+    addi    $t7, $t7, 1   # $t7 = ($t0 % 3) + 1
+    #
+    li $t4, 2
+    beq $t7, $t4, SETG
+    li $t4, 3
+    beq $t7, $t4, SETB
+SETR:
+	li $t7, 0xff0000
+	j endColour
+SETG:
+	li $t7, 0x00ff00
+	j endColour
+SETB:
+	li $t7, 0x0000ff
+	j endColour
+endColour:
 
     # Store the result in the data section
     la      $t6, type     # Load address of 'type'
-    sw      $t5, 0($t6)   # Store the randomized value 
+    sw      $t5, 0($t6)   # Store the randomized value
+    # Store the result in the data section
+    la      $t6, currentColour    
+    sw      $t7, 0($t6)
 
 #load the specified block
     li $t7, 2
@@ -255,9 +282,7 @@ respond_to_A:
 	jal LEFT_SIDE_CHECK
 	jal redraw
 	b game_loop
-	
-	
-	
+		
 respond_to_M:
 	jal BOTTOM_SIDE_CHECK_PETER
 	jal redraw
@@ -267,9 +292,6 @@ respond_to_S:
 	jal BOTTOM_SIDE_CHECK
 	jal redraw
 	b game_loop
-
-	
-
 
 respond_to_W:
 	lw $t0, ADDR_DSPL
@@ -285,10 +307,18 @@ respond_to_W:
 	li $t5, 1
 	beq $t4, $zero, game_loop #we dont need to rotate cube
 	li $t5, 2
-	beq $t4, $t5, ROTATION_LINE 
+	beq $t4, $t5, ROTATION_LINE
+	li $t5, 3
+	beq $t4, $t5, ROTATION_Z
+	li $t5, 4
+	beq $t4, $t5, ROTATION_Z
+	li $t5, 5
+	beq $t4, $t5, ROTATION_L
+	li $t5, 6
+	beq $t4, $t5, ROTATION_J
 	li $t5, 7
 	beq $t4, $t5, ROTATION_T
-	
+	#dubug
 	jal redraw
 	b game_loop
 	#to do add all rotation L J S Z 
@@ -354,8 +384,124 @@ vertical:
 	jal clearShape
 	jal redraw
 	b game_loop
-	
-
+ROTATION_Z:
+	beq $t3, $zero, ZV
+ZH:
+	sw $zero, rotationState
+	jal storeZH
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+ZV:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeZV
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+ROTATION_S:
+	beq $t3, $zero, SV
+SH:
+	sw $zero, rotationState
+	jal storeSH
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+SV:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeSV
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+ROTATION_L:
+	lw $t2, 0($t1)
+	beq $t3, $zero, LL
+	li $t5, 1
+	beq $t3, $t5, LD
+	li $t5, 2
+	beq $t3, $t5, LR
+LU:
+	sw $zero, rotationState
+	jal storeLU
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+LL:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeLL
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+LD:
+	li $t3, 2
+	sw $t3, rotationState
+	jal storeLD
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+LR:
+	li $t3, 3
+	sw $t3, rotationState
+	jal storeLR
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop	
+ROTATION_J:
+	lw $t2, 0($t1)
+	beq $t3, $zero, JL
+	li $t5, 1
+	beq $t3, $t5, JD
+	li $t5, 2
+	beq $t3, $t5, JR
+JU:
+	sw $zero, rotationState
+	jal storeJU
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+JL:
+	li $t3, 1
+	sw $t3, rotationState
+	jal storeJL
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+JD:
+	li $t3, 2
+	sw $t3, rotationState
+	jal storeJD
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
+JR:
+	li $t3, 3
+	sw $t3, rotationState
+	jal storeJR
+	la $t1, pixel
+	sw $t2, 0($t1)
+	jal clearShape
+	jal redraw
+	b game_loop
 	
 
 	
@@ -394,8 +540,8 @@ loop3:
 	
 return_leave_loop_block_below3:
 	jal redraw
-	j helper_function
-	#j start
+	j game_loop
+	
 	
 return_no_block3:
 	la $t1, pixel
@@ -431,7 +577,7 @@ loop4:
 	
 return_leave_loop_block_below4:
 	jal redraw
-	j helper_function
+	j game_loop
 	#j start
 	
 return_no_block4:
@@ -548,8 +694,10 @@ clearShape:
 	
 redraw: 
 	#redraw
+	la $t6, currentColour    
+    	lw $t3, 0($t6)
 	lw $t0, ADDR_DSPL
-	li $t3, 0xff0000
+
 	la $t1, pixel
 	lw $t2, 0($t1)
 	add $t0, $t0, $t2
@@ -603,6 +751,17 @@ storeZH:
 	li $s1, 4
 	sw $s1, 12($s0)
 	jr $ra
+storeZV:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 124
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 124
+	sw $s1, 12($s0)
+	jr $ra
 storeSH:
 	la $s0, pixel
 	li $s1, 64
@@ -612,6 +771,17 @@ storeSH:
 	li $s1, 120
 	sw $s1, 8($s0)
 	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeSV:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 128
 	sw $s1, 12($s0)
 	jr $ra
 storeBlock:
@@ -647,7 +817,29 @@ storeLU:
 	li $s1, 128
 	sw $s1, 12($s0)
 	jr $ra
-storeJU: #(left L)
+storeLL:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 120
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeLR:
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 120
+	sw $s1, 12($s0)
+	jr $ra
+storeJU: 
 	la $s0, pixel
 	li $s1, 64
 	sw $s1, 0($s0)
@@ -656,6 +848,39 @@ storeJU: #(left L)
 	li $s1, 128
 	sw $s1, 8($s0)
 	li $s1, -4
+	sw $s1, 12($s0)
+	jr $ra
+storeJD: 
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 4
+	sw $s1, 4($s0)
+	li $s1, 128
+	sw $s1, 8($s0)
+	li $s1, 128
+	sw $s1, 12($s0)
+	jr $ra
+storeJL: 
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 4
+	sw $s1, 12($s0)
+	jr $ra
+storeJR: 
+	la $s0, pixel
+	li $s1, 64
+	sw $s1, 0($s0)
+	li $s1, 128
+	sw $s1, 4($s0)
+	li $s1, 4
+	sw $s1, 8($s0)
+	li $s1, 4
 	sw $s1, 12($s0)
 	jr $ra
 storeTHU:
