@@ -279,9 +279,9 @@ BORDER_SIDE:
 	
 BORDER_LOOP_SIDE:
 	beq $t3, $t1, end_DRAW
-	sw $t2, 640($t0)
+	sw $t2, 896($t0)
 	addi $t0, $t0, 104
-	sw $t2, 640($t0)
+	sw $t2, 896($t0)
 	addi $t0, $t0, 24
 	addi $t1, $t1, 128
 	j BORDER_LOOP_SIDE
@@ -302,9 +302,9 @@ BORDER_BOTTOM_LOOP:
 BORDER_TOP:
 	lw $t0, ADDR_DSPL
 	li $t2, 0xf0f00f
-	addi $t0, $t0, 512
-	li $t1, 512
-	li $t3, 620
+	addi $t0, $t0, 768
+	li $t1, 768
+	li $t3, 876
 	
 BORDER_TOP_LOOP:
 	beq $t1, $t3, end_DRAW
@@ -764,7 +764,7 @@ redraw:
 
 storeLineV:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -775,7 +775,7 @@ storeLineV:
 	jr $ra
 storeLineH:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -787,7 +787,7 @@ storeLineH:
 
 storeZH:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -798,7 +798,7 @@ storeZH:
 	jr $ra
 storeZV:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 124
 	sw $s1, 4($s0)
@@ -809,7 +809,7 @@ storeZV:
 	jr $ra
 storeSH:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -820,7 +820,7 @@ storeSH:
 	jr $ra
 storeSV:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -831,7 +831,7 @@ storeSV:
 	jr $ra
 storeBlock:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1 4
 	sw $s1, 4($s0)
@@ -842,7 +842,7 @@ storeBlock:
 	jr $ra
 storeLD:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -853,7 +853,7 @@ storeLD:
 	jr $ra
 storeLU:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -864,7 +864,7 @@ storeLU:
 	jr $ra
 storeLL:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 120
 	sw $s1, 4($s0)
@@ -875,7 +875,7 @@ storeLL:
 	jr $ra
 storeLR:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -886,7 +886,7 @@ storeLR:
 	jr $ra
 storeJU: 
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -897,7 +897,7 @@ storeJU:
 	jr $ra
 storeJD: 
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 4
 	sw $s1, 4($s0)
@@ -908,7 +908,7 @@ storeJD:
 	jr $ra
 storeJL: 
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -919,7 +919,7 @@ storeJL:
 	jr $ra
 storeJR: 
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -930,7 +930,7 @@ storeJR:
 	jr $ra
 storeTHU:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -941,7 +941,7 @@ storeTHU:
 	jr $ra
 storeTVL:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 124
 	sw $s1, 4($s0)
@@ -952,7 +952,7 @@ storeTVL:
 	jr $ra
 storeTVR:
 	la $s0, pixel
-	li $s1, 704
+	li $s1, 960
 	sw $s1, 0($s0)
 	li $s1, 128
 	sw $s1, 4($s0)
@@ -1069,7 +1069,7 @@ LINE_FULL_LOOP_ACTUAL_LOOP:
 
 LINE_FULL_LOOP_END:
 	lw $t5, ADDR_DSPL
-	addi $t5, $t5, 768
+	addi $t5, $t5, 900
 	blt $t0, $t5, CHECKING_FULL_STOP
 	#HOLT GRRAIL CHECK IM OUT OF IDEA
 	beq $t7, $t8, LINE_DROP
@@ -1117,7 +1117,7 @@ LINE_DROP_CONT:
 	
 LINE_DROP_LOOP_END:
 	lw $t5, ADDR_DSPL
-	addi $t5, $t5, 768
+	addi $t5, $t5, 900
 	blt $t0, $t5, LINE_DROP_FULL_STOP
 	j LINE_DROP
 	
