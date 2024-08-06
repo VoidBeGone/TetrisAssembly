@@ -62,8 +62,7 @@ rotationState: .word 0 # because some shapes have less then two axis of symetry
 type: .word 1 # 1 = block 2 = line , 3 = s , 4= z, 5=L 6 =  J, 7= T
 currentColour: .word 0x000000
 number: .word 0
-
-
+number_change: .word 0
 ##############################################################################
 # Code
 ##############################################################################
@@ -168,7 +167,7 @@ L7:
     b game_loop
 
 game_loop:
-
+     jal display_numbers
     # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
@@ -201,13 +200,16 @@ call_respond_to_S:
     #syscall                          
 
     #j       respond_to_S            
-    j       game_loop                
+    j       game_loop           
 	
 	
 	
 #Everything in this box is for quiting 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 EXIT:
+    li $t0, 0
+    la $t1, number
+    sw $t0, 0($t1)
     li $t0, 10000000           #
 
 EXIT_LOOP:
@@ -1025,10 +1027,20 @@ END_TOUCH_LOOP:
 LINE_FULL:
 	#this means line is full so we will need to remove it, then drop everything above it down 
 	#lets work on removing the line 
+	la $t9, number #added this for number thing
+	lw $t3, number
+	addi $t3, $t3, 1
+	sw $t3, 0($t9)
+	
+	la $t9, number_change
+	li $t3, 1
+	sw $t3, 0($t9)
+	
 	li $t8, 7
 	add $t0, $t0, 100 #we are moving it back to the start of the line in reverse 
 	li $t4, 25 #counter end
 	li $t9, 0xff0000
+	
 	
 LINE_FULL_LOOP_RED:
 	beq $t4, $zero, LINE_FULL_BLUE
@@ -1076,6 +1088,7 @@ LINE_FULL_LOOP_END:
 	addi $t0, $t0, -8 #cause the border spots need to be the removed 
 	addi $sp, $sp, -4
 	sw $t0, 0($sp)
+	 
 	j has_been_touched     #currently what this is doing is just looping through the the next line and checking
 
 
@@ -1293,3 +1306,325 @@ game_over_screen:
 
   
     j EXIT
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+#the code for the number screen goes here 
+display_numbers:
+	move $t5, $ra	
+	lw $t9, number_change
+	bne $t9, $zero, change_number
+	#this means to just display the number
+	
+display_num_screen:
+	lw $t9, number 
+	#dont need ra thing here since be default ra will have right value 
+	
+display_nums_ones:
+	beq $t9, 1, number_one
+	beq $t9, 2, number_two
+	beq $t9, 3, number_three
+	beq $t9, 4, number_four
+	beq $t9, 5, number_five
+	beq $t9, 6, number_six
+	beq $t9, 7, number_seven
+	beq $t9, 8, number_eight
+	beq $t9, 9, number_nine
+	beq $t9, 0, number_zero
+	
+	
+change_number:
+	jal chunk_clear
+	move $ra, $t5
+	
+	la $t9, number_change
+	sw $zero, 0($t9)
+	j display_num_screen
+	
+	
+	
+	
+	
+	
+	
+chunk_clear:
+	lw $t0, ADDR_DSPL
+	li $t1, 640
+	li $t2, 0x000000
+chunk_clear_LOOP:
+	beq $t1, $zero, chunk_clear_end
+	addi $t1, $t1, -4
+	sw $t2, 0($t0)
+	addi $t0, $t0, 4
+	j chunk_clear_LOOP
+chunk_clear_end:
+	jr $ra
+   
+   
+number_one:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	addi $t0, $t0, 8 #for now im going to have it one the third most square
+	sw $t2, 0($t0)
+	sw $t2, 128($t0)
+	sw $t2, 256($t0)
+	sw $t2, 384($t0)
+	sw $t2, 512($t0)
+	jr $ra
+	
+number_two:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2, 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 260($t0)
+	sw $t2, 256($t0)
+	sw $t2, 384($t0)
+	sw $t2, 512($t0)
+	sw $t2, 516($t0)
+	sw $t2, 520($t0)
+	jr $ra
+	
+number_three:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2, 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 260($t0)
+	sw $t2, 256($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	sw $t2, 516($t0)
+	sw $t2, 512($t0)
+	jr $ra
+	
+number_four:
+	lw $t1, 0($sp)#the offeset value 
+	addi $sp, $sp, -4
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	#add $t0, $t0, $t2
+	
+	sw $t2,0($t0)
+	sw $t2, 8($t0)
+	sw $t2, 128($t0)
+	sw $t2, 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 260($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	jr $ra
+	
+number_five:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	
+	sw $t2, 0($t0)
+	sw $t2,4($t0)
+	sw $t2, 8($t0)
+	sw $t2, 128($t0)
+	sw $t2, 256($t0)
+	sw $t2, 260($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	sw $t2, 516($t0)
+	sw $t2, 512($t0)
+	jr $ra
+number_six:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	
+	sw $t2, 0($t0)
+	sw $t2, 128($t0)
+	sw $t2, 256($t0)
+	sw $t2, 260($t0)
+	sw $t2, 264($t0)
+	sw $t2, 384($t0)
+	sw $t2, 392($t0)
+	sw $t2, 512($t0)
+	sw $t2, 516($t0)
+	sw $t2, 520($t0)
+	jr $ra
+number_seven:
+
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	jr $ra
+	
+number_eight:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+
+	
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	sw $t2, 128($t0)
+	sw $t2,256($t0)
+	sw $t2, 260($t0)
+	sw $t2, 384($t0)
+	sw $t2, 512($t0)
+	sw $t2, 516($t0)
+	jr $ra
+	
+number_nine:
+
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+		
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	sw $t2, 128($t0)
+	sw $t2, 256($t0)
+	sw $t2, 260($t0)
+	jr $ra
+	
+number_zero:
+	lw $t0, ADDR_DSPL
+	li $t2, 0x0f00f0 #color
+	
+	sw $t2, 0($t0)
+	sw $t2, 4($t0)
+	sw $t2, 8($t0)
+	sw $t2 136($t0)
+	sw $t2, 264($t0)
+	sw $t2, 392($t0)
+	sw $t2, 520($t0)
+	sw $t2, 128($t0)
+	sw $t2,256($t0)
+	sw $t2, 384($t0)
+	sw $t2, 512($t0)
+	sw $t2, 516($t0)
+	jr $ra
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
