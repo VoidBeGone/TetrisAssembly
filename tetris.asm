@@ -57,12 +57,14 @@ delay:  .word 200  # Delay for sumthin
 # Mutable Data
 ##############################################################################
 pixel: .word 0,0,0,0 #store the offset
-pixel_next: .word 0, 0, 0, 0
+pixel_temp: .word 0, 0, 0, 0
 rotationState: .word 0 # because some shapes have less then two axis of symetry
 type: .word 1 # 1 = block 2 = line , 3 = s , 4= z, 5=L 6 =  J, 7= T
+n_type: .word 1
 currentColour: .word 0x000000
 number: .word 0
-number_change: .word 0
+
+
 ##############################################################################
 # Code
 ##############################################################################
@@ -74,6 +76,12 @@ main:
     # Initialize the game
     jal draw_SCREEN
 start:
+
+    ###########
+######Set the type to the next type
+    lw $t5, n_type
+    sw $t5, type
+
     # Initialize the random seed
     move      $t0, $sp   # Seed value (you can use any value or a variable if needed)
 
@@ -109,10 +117,11 @@ SETB:
 	li $t7, 0x0000ff
 	j endColour
 endColour:
-
+    
     # Store the result in the data section
-    la      $t6, type     # Load address of 'type'
+    la      $t6, n_type     # Load address of 'type'
     sw      $t5, 0($t6)   # Store the randomized value
+    lw $t5, type # use this to draw current
     # Store the result in the data section
     la      $t6, currentColour    
     sw      $t7, 0($t6)
@@ -134,40 +143,146 @@ endColour:
 L1:    
     jal storeBlock
     jal GAME_OVER_CHECK
-    b game_loop
+    b draw_next
 
 L2:    
+
     jal storeLineV
      jal GAME_OVER_CHECK
-    b game_loop
+    b draw_next
 
 L3:    
     jal storeSH
-     jal GAME_OVER_CHECK
-    b game_loop
+
+    jal GAME_OVER_CHECK
+    b draw_next
 
 L4:    
     jal storeZH
+
      jal GAME_OVER_CHECK
-    b game_loop
+    b draw_next
 
 L5:    
     jal storeLD
+
      jal GAME_OVER_CHECK
-    b game_loop
+    b draw_next
 
 L6:    
     jal storeJU
+
      jal GAME_OVER_CHECK
-    b game_loop
+    b draw_next
 
 L7:    
     jal storeTHU
-     jal GAME_OVER_CHECK
-    b game_loop
 
+    jal GAME_OVER_CHECK
+    b draw_next
+# draw next block
+draw_next: 
+    lw $s0, currentColour
+    #######clear the next block from top left
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    li $s5, 0x000000
+    sw $s5, currentColour
+    jal redraw
+    li $s5, 960
+    sw $s5, 0($s6)
+    sw $s0, currentColour
+    jal redraw
+    
+        
+        lw $t5, n_type
+#save the current pixel in temp
+	la $s0, pixel
+	la $s2, pixel_temp
+	lw $s1, 0($s0)
+	sw $s1, 0($s2)
+	lw $s1, 4($s0)
+	sw $s1, 4($s2)
+	lw $s1, 8($s0)
+	sw $s1, 8($s2)
+	lw $s1, 12($s0)
+	sw $s1, 12($s2)
+#############################    
+    li $t7, 2
+    beq $t5, $t7, LN2
+    li $t7, 3
+    beq $t5, $t7, LN3
+    li $t7, 4
+    beq $t5, $t7, LN4
+    li $t7, 5
+    beq $t5, $t7, LN5
+    li $t7, 6
+    beq $t5, $t7, LN6
+    li $t7, 7
+    beq $t5, $t7, LN7
+LN1:
+    jal storeBlock
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN2:
+    jal storeLineV
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN3:
+    jal storeSH
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN4:
+    jal storeZH
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN5:
+    jal storeLD
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN6:
+    jal storeJU
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+LN7:
+    jal storeTHU
+    la $s6, pixel
+    li $s5, 8
+    sw $s5, 0($s6)
+    jal redraw
+    b restore
+restore:
+	la $s0, pixel_temp
+	la $s2, pixel
+	lw $s1, 0($s0)
+	sw $s1, 0($s2)
+	lw $s1, 4($s0)
+	sw $s1, 4($s2)
+	lw $s1, 8($s0)
+	sw $s1, 8($s2)
+	lw $s1, 12($s0)
+	sw $s1, 12($s2)
 game_loop:
-     jal display_numbers
+
     # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
@@ -195,21 +310,18 @@ keyboard_input:
     j       game_loop                # Go back to game_loop
 
 call_respond_to_S:
-   # li      $v0, 32                  
-    #lw      $a0, delay              
-    #syscall                          
+    li      $v0, 32                  
+    lw      $a0, delay              
+    syscall                          
 
-    #j       respond_to_S            
-    j       game_loop           
+    j       respond_to_S            
+    j       game_loop                
 	
 	
 	
 #Everything in this box is for quiting 
 #->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 EXIT:
-    li $t0, 0
-    la $t1, number
-    sw $t0, 0($t1)
     li $t0, 10000000           #
 
 EXIT_LOOP:
@@ -1027,20 +1139,10 @@ END_TOUCH_LOOP:
 LINE_FULL:
 	#this means line is full so we will need to remove it, then drop everything above it down 
 	#lets work on removing the line 
-	la $t9, number #added this for number thing
-	lw $t3, number
-	addi $t3, $t3, 1
-	sw $t3, 0($t9)
-	
-	la $t9, number_change
-	li $t3, 1
-	sw $t3, 0($t9)
-	
 	li $t8, 7
 	add $t0, $t0, 100 #we are moving it back to the start of the line in reverse 
 	li $t4, 25 #counter end
 	li $t9, 0xff0000
-	
 	
 LINE_FULL_LOOP_RED:
 	beq $t4, $zero, LINE_FULL_BLUE
@@ -1088,7 +1190,6 @@ LINE_FULL_LOOP_END:
 	addi $t0, $t0, -8 #cause the border spots need to be the removed 
 	addi $sp, $sp, -4
 	sw $t0, 0($sp)
-	 
 	j has_been_touched     #currently what this is doing is just looping through the the next line and checking
 
 
@@ -1306,325 +1407,3 @@ game_over_screen:
 
   
     j EXIT
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-#the code for the number screen goes here 
-display_numbers:
-	move $t5, $ra	
-	lw $t9, number_change
-	bne $t9, $zero, change_number
-	#this means to just display the number
-	
-display_num_screen:
-	lw $t9, number 
-	#dont need ra thing here since be default ra will have right value 
-	
-display_nums_ones:
-	beq $t9, 1, number_one
-	beq $t9, 2, number_two
-	beq $t9, 3, number_three
-	beq $t9, 4, number_four
-	beq $t9, 5, number_five
-	beq $t9, 6, number_six
-	beq $t9, 7, number_seven
-	beq $t9, 8, number_eight
-	beq $t9, 9, number_nine
-	beq $t9, 0, number_zero
-	
-	
-change_number:
-	jal chunk_clear
-	move $ra, $t5
-	
-	la $t9, number_change
-	sw $zero, 0($t9)
-	j display_num_screen
-	
-	
-	
-	
-	
-	
-	
-chunk_clear:
-	lw $t0, ADDR_DSPL
-	li $t1, 640
-	li $t2, 0x000000
-chunk_clear_LOOP:
-	beq $t1, $zero, chunk_clear_end
-	addi $t1, $t1, -4
-	sw $t2, 0($t0)
-	addi $t0, $t0, 4
-	j chunk_clear_LOOP
-chunk_clear_end:
-	jr $ra
-   
-   
-number_one:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	addi $t0, $t0, 8 #for now im going to have it one the third most square
-	sw $t2, 0($t0)
-	sw $t2, 128($t0)
-	sw $t2, 256($t0)
-	sw $t2, 384($t0)
-	sw $t2, 512($t0)
-	jr $ra
-	
-number_two:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2, 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 260($t0)
-	sw $t2, 256($t0)
-	sw $t2, 384($t0)
-	sw $t2, 512($t0)
-	sw $t2, 516($t0)
-	sw $t2, 520($t0)
-	jr $ra
-	
-number_three:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2, 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 260($t0)
-	sw $t2, 256($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	sw $t2, 516($t0)
-	sw $t2, 512($t0)
-	jr $ra
-	
-number_four:
-	lw $t1, 0($sp)#the offeset value 
-	addi $sp, $sp, -4
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	#add $t0, $t0, $t2
-	
-	sw $t2,0($t0)
-	sw $t2, 8($t0)
-	sw $t2, 128($t0)
-	sw $t2, 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 260($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	jr $ra
-	
-number_five:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	
-	sw $t2, 0($t0)
-	sw $t2,4($t0)
-	sw $t2, 8($t0)
-	sw $t2, 128($t0)
-	sw $t2, 256($t0)
-	sw $t2, 260($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	sw $t2, 516($t0)
-	sw $t2, 512($t0)
-	jr $ra
-number_six:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	
-	sw $t2, 0($t0)
-	sw $t2, 128($t0)
-	sw $t2, 256($t0)
-	sw $t2, 260($t0)
-	sw $t2, 264($t0)
-	sw $t2, 384($t0)
-	sw $t2, 392($t0)
-	sw $t2, 512($t0)
-	sw $t2, 516($t0)
-	sw $t2, 520($t0)
-	jr $ra
-number_seven:
-
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	jr $ra
-	
-number_eight:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-
-	
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	sw $t2, 128($t0)
-	sw $t2,256($t0)
-	sw $t2, 260($t0)
-	sw $t2, 384($t0)
-	sw $t2, 512($t0)
-	sw $t2, 516($t0)
-	jr $ra
-	
-number_nine:
-
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-		
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	sw $t2, 128($t0)
-	sw $t2, 256($t0)
-	sw $t2, 260($t0)
-	jr $ra
-	
-number_zero:
-	lw $t0, ADDR_DSPL
-	li $t2, 0x0f00f0 #color
-	
-	sw $t2, 0($t0)
-	sw $t2, 4($t0)
-	sw $t2, 8($t0)
-	sw $t2 136($t0)
-	sw $t2, 264($t0)
-	sw $t2, 392($t0)
-	sw $t2, 520($t0)
-	sw $t2, 128($t0)
-	sw $t2,256($t0)
-	sw $t2, 384($t0)
-	sw $t2, 512($t0)
-	sw $t2, 516($t0)
-	jr $ra
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
