@@ -1,7 +1,7 @@
 #####################################################################
 # CSCB58 Summer 2024 Assembly Final Project - UTSC
 # Student1: Name, Student Number, UTorID, official email
-# Student2: Name, Student Number, UTorID, official email
+# Student2: Christian Rogers, 1010312895, roger124, christian.rogers@mail.utoronto.ca
 #
 # Bitmap Display Configuration:
 # - Unit width in pixels: 8 (update this as needed) 
@@ -185,7 +185,7 @@ draw_next:
     lw $s0, currentColour
     #######clear the next block from top left
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     li $s5, 0x000000
     sw $s5, currentColour
@@ -224,49 +224,49 @@ draw_next:
 LN1:
     jal storeBlock
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN2:
     jal storeLineV
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN3:
     jal storeSH
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN4:
     jal storeZH
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN5:
     jal storeLD
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN6:
     jal storeJU
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
 LN7:
     jal storeTHU
     la $s6, pixel
-    li $s5, 8
+    li $s5, 1012
     sw $s5, 0($s6)
     jal redraw
     b restore
